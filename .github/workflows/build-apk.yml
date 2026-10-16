@@ -13,68 +13,76 @@ jobs:
       - name: 1. Checkout Repository Files
         uses: actions/checkout@v4
 
-      - name: 2. Set up Node.js
+      - name: 2. Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: 3. Set up Java 17 for Android Gradle Compiler
+      - name: 3. Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 4. Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: 5. Bundle HTML, Icons & Offline Libraries Inside App
+      - name: 4. Bundle HTML, Icons & Offline Libraries
         run: |
           mkdir -p www
-          cp index.html www/index.html
+          if [ -f "index.html" ]; then
+            cp index.html www/index.html
+          else
+            FIRST_HTML=$(find . -maxdepth 1 -iname "*.html" | head -n 1)
+            cp "$FIRST_HTML" www/index.html
+          fi
           if [ -f "manifest.json" ]; then cp manifest.json www/; fi
           if [ -f "icon.png" ]; then cp icon.png www/; fi
-          # Download Tailwind & Lucide directly into the APK so it works 100% offline
-          curl -sL https://cdn.tailwindcss.com -o www/tailwind.js
-          curl -sL https://unpkg.com/lucide@latest -o www/lucide.js
-          sed -i 's|https://cdn.tailwindcss.com|./tailwind.js|g' www/index.html
-          sed -i 's|https://unpkg.com/lucide@latest|./lucide.js|g' www/index.html
+          curl -sL https://cdn.tailwindcss.com -o www/tailwind.js || true
+          curl -sL https://unpkg.com/lucide@latest -o www/lucide.js || true
+          if [ -s www/tailwind.js ]; then sed -i 's|https://cdn.tailwindcss.com|./tailwind.js|g' www/index.html; fi
+          if [ -s www/lucide.js ]; then sed -i 's|https://unpkg.com/lucide@latest|./lucide.js|g' www/index.html; fi
 
-      - name: 6. Build Native Android Project with Capacitor
+      - name: 5. Initialize Native Capacitor Android Project
         run: |
-          npm init -y
-          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          cat << 'EOF' > package.json
+          {
+            "name": "habitos-local-app",
+            "version": "1.0.0",
+            "description": "habitOS Local Android App",
+            "private": true
+          }
+          EOF
+          npm install @capacitor/core@6.1.2 @capacitor/cli@6.1.2 @capacitor/android@6.1.2
           npx cap init "habitOS" "com.enzatech.habitos" --web-dir www
           npx cap add android
           npx cap copy android
 
-      - name: 7. Apply Your Custom icon.png to Native Android Launcher Icons
+      - name: 6. Apply Custom icon.png to Android Launcher
         run: |
           if [ -f "icon.png" ]; then
-            sudo apt-get update && sudo apt-get install -y imagemagick
-            convert icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-            convert icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-            convert icon.png -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-            convert icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-            convert icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-            convert icon.png -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-            convert icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-            convert icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-            convert icon.png -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-            convert icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-            convert icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-            convert icon.png -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-            convert icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-            convert icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-            convert icon.png -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+            sudo apt-get update && sudo apt-get install -y imagemagick || true
+            convert icon.png -resize 48x48 PNG32:android/app/src/main/res/mipmap-mdpi/ic_launcher.png || true
+            convert icon.png -resize 48x48 PNG32:android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png || true
+            convert icon.png -resize 108x108 PNG32:android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png || true
+            convert icon.png -resize 72x72 PNG32:android/app/src/main/res/mipmap-hdpi/ic_launcher.png || true
+            convert icon.png -resize 72x72 PNG32:android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png || true
+            convert icon.png -resize 162x162 PNG32:android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png || true
+            convert icon.png -resize 96x96 PNG32:android/app/src/main/res/mipmap-xhdpi/ic_launcher.png || true
+            convert icon.png -resize 96x96 PNG32:android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png || true
+            convert icon.png -resize 216x216 PNG32:android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png || true
+            convert icon.png -resize 144x144 PNG32:android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png || true
+            convert icon.png -resize 144x144 PNG32:android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png || true
+            convert icon.png -resize 324x324 PNG32:android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png || true
+            convert icon.png -resize 192x192 PNG32:android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png || true
+            convert icon.png -resize 192x192 PNG32:android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png || true
+            convert icon.png -resize 432x432 PNG32:android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png || true
           fi
 
-      - name: 8. Compile Standalone Android APK via Gradle
+      - name: 7. Compile Standalone Android APK via Gradle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: 9. Upload Ready-to-Install APK
+      - name: 8. Upload Ready-to-Install APK
         uses: actions/upload-artifact@v4
         with:
           name: habitOS-Local-Android-APK
